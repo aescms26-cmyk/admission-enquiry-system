@@ -312,10 +312,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
     try {
       const response = await fetch('/api/admin/clear-data', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-admin-id': user.id
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminId: user.id })
       });
       const result = await response.json();
@@ -327,7 +324,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
         setError(result.error || 'Failed to clear data');
       }
     } catch (err) {
-      console.error('Clear data error:', err);
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -335,15 +331,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ user }) => {
   };
 
   const handleDeleteUser = async (userId: string) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
     setLoading(true);
     try {
       const response = await fetch(`/api/users/${userId}`, {
         method: 'DELETE',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-admin-id': user.id
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminId: user.id })
       });
       const result = await response.json();

@@ -203,15 +203,9 @@ export async function createServer() {
   // Delete User (Admin only)
   app.delete('/api/users/:userId', async (req, res) => {
     const { userId } = req.params;
-    const adminId = req.body.adminId || req.headers['x-admin-id'];
-
-    console.log(`Attempting to delete user ${userId} requested by admin ${adminId}`);
+    const { adminId } = req.body;
 
     try {
-      if (!adminId) {
-        return res.status(400).json({ error: 'Admin ID is required' });
-      }
-
       // Verify requester is admin
       const { data: adminData, error: adminError } = await supabase
         .from('users')
@@ -220,32 +214,13 @@ export async function createServer() {
         .single();
 
       if (adminError || (adminData.role !== 'admin' && adminData.email !== 'aescms26@gmail.com')) {
-        console.warn(`Unauthorized delete attempt for user ${userId} by ${adminId}`);
         return res.status(403).json({ error: 'Unauthorized' });
       }
 
-      // 1. Delete from users table explicitly first (to avoid RLS issues or missing triggers)
-      const { error: dbDeleteError } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', userId);
-      
-      if (dbDeleteError) {
-        console.error('Error deleting from users table:', dbDeleteError);
-        // Continue anyway as the user might only exist in Auth
-      }
-
-      // 2. Delete from Auth
+      // Delete from Auth (this will cascade delete from users table if foreign key is set correctly)
       const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-      if (authError) {
-        console.error('Error deleting from Auth:', authError);
-        // If it's "User not found", we can still consider it a success if we deleted from DB
-        if (!authError.message.includes('User not found')) {
-          throw authError;
-        }
-      }
+      if (authError) throw authError;
 
-      console.log(`User ${userId} deleted successfully`);
       res.json({ success: true });
     } catch (error: any) {
       console.error('Error deleting user:', error);
@@ -326,10 +301,8 @@ export async function createServer() {
 
   // Clear Data (Admin only)
   app.post('/api/admin/clear-data', async (req, res) => {
-    const adminId = req.body.adminId || req.headers['x-admin-id'];
+    const { adminId } = req.body;
     
-    console.log(`System clear data requested by admin ${adminId}`);
-
     try {
       if (!adminId) {
         return res.status(400).json({ error: 'Admin ID is required' });
@@ -343,7 +316,6 @@ export async function createServer() {
         .single();
 
       if (adminError || (adminData.role !== 'admin' && adminData.email !== 'aescms26@gmail.com')) {
-        console.warn(`Unauthorized clear data attempt by ${adminId}`);
         return res.status(403).json({ error: 'Unauthorized' });
       }
 
@@ -358,15 +330,11 @@ export async function createServer() {
       if (users) {
         for (const u of users) {
           if (u.id !== adminId && u.email !== 'aescms26@gmail.com') {
-            // Delete from DB first
-            await supabase.from('users').delete().eq('id', u.id);
-            // Delete from Auth
-            await supabase.auth.admin.deleteUser(u.id).catch(e => console.error(`Failed to delete auth user ${u.id}:`, e));
+            await supabase.auth.admin.deleteUser(u.id);
           }
         }
       }
 
-      console.log('System data cleared successfully');
       res.json({ success: true, message: 'System data cleared successfully' });
     } catch (error: any) {
       console.error('Error clearing data:', error);
