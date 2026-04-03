@@ -98,8 +98,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         setError(result.error || 'Invalid User ID or Name');
       }
     } catch (err: any) {
-      console.error('Login error:', err);
-      setError('Network error. Please try again.');
+      console.error('Login error details:', err);
+      if (err.name === 'AbortError') {
+        setError('Login request timed out. Please check your internet connection.');
+      } else {
+        setError('Network error during login. Please ensure the server is running.');
+      }
     } finally {
       setLoading(false);
     }

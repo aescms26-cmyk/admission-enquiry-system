@@ -1,5 +1,4 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
@@ -35,9 +34,9 @@ const supabase = createClient(
   }
 );
 
-async function startServer() {
+export async function createServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -204,9 +203,15 @@ async function startServer() {
   // Delete User (Admin only)
   app.delete('/api/users/:userId', async (req, res) => {
     const { userId } = req.params;
-    const { adminId } = req.body;
+    const adminId = req.body.adminId || req.headers['x-admin-id'];
+
+    console.log(`Attempting to delete user ${userId} requested by admin ${adminId}`);
 
     try {
+      if (!adminId) {
+        return res.status(400).json({ error: 'Admin ID is required' });
+      }
+
       // Verify requester is admin
       const { data: adminData, error: adminError } = await supabase
         .from('users')
@@ -215,13 +220,32 @@ async function startServer() {
         .single();
 
       if (adminError || (adminData.role !== 'admin' && adminData.email !== 'aescms26@gmail.com')) {
+        console.warn(`Unauthorized delete attempt for user ${userId} by ${adminId}`);
         return res.status(403).json({ error: 'Unauthorized' });
       }
 
-      // Delete from Auth (this will cascade delete from users table if foreign key is set correctly)
-      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-      if (authError) throw authError;
+      // 1. Delete from users table explicitly first (to avoid RLS issues or missing triggers)
+      const { error: dbDeleteError } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+      
+      if (dbDeleteError) {
+        console.error('Error deleting from users table:', dbDeleteError);
+        // Continue anyway as the user might only exist in Auth
+      }
 
+      // 2. Delete from Auth
+      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
+      if (authError) {
+        console.error('Error deleting from Auth:', authError);
+        // If it's "User not found", we can still consider it a success if we deleted from DB
+        if (!authError.message.includes('User not found')) {
+          throw authError;
+        }
+      }
+
+      console.log(`User ${userId} deleted successfully`);
       res.json({ success: true });
     } catch (error: any) {
       console.error('Error deleting user:', error);
@@ -302,8 +326,10 @@ async function startServer() {
 
   // Clear Data (Admin only)
   app.post('/api/admin/clear-data', async (req, res) => {
-    const { adminId } = req.body;
+    const adminId = req.body.adminId || req.headers['x-admin-id'];
     
+    console.log(`System clear data requested by admin ${adminId}`);
+
     try {
       if (!adminId) {
         return res.status(400).json({ error: 'Admin ID is required' });
@@ -317,6 +343,7 @@ async function startServer() {
         .single();
 
       if (adminError || (adminData.role !== 'admin' && adminData.email !== 'aescms26@gmail.com')) {
+        console.warn(`Unauthorized clear data attempt by ${adminId}`);
         return res.status(403).json({ error: 'Unauthorized' });
       }
 
@@ -331,11 +358,15 @@ async function startServer() {
       if (users) {
         for (const u of users) {
           if (u.id !== adminId && u.email !== 'aescms26@gmail.com') {
-            await supabase.auth.admin.deleteUser(u.id);
+            // Delete from DB first
+            await supabase.from('users').delete().eq('id', u.id);
+            // Delete from Auth
+            await supabase.auth.admin.deleteUser(u.id).catch(e => console.error(`Failed to delete auth user ${u.id}:`, e));
           }
         }
       }
 
+      console.log('System data cleared successfully');
       res.json({ success: true, message: 'System data cleared successfully' });
     } catch (error: any) {
       console.error('Error clearing data:', error);
@@ -432,23 +463,33 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS break_duration_mins INTEGER DE
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
+    // In Vercel, static files are served by the platform, 
+    // but we keep this for other production environments.
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    if (require('fs').existsSync(distPath)) {
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  return app;
 }
 
-startServer();
+if (process.env.NODE_ENV !== 'production') {
+  createServer().then(app => {
+    const PORT = 3000;
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  });
+}
