@@ -51,12 +51,6 @@ const App: React.FC = () => {
 
     // Check active sessions
     const checkUser = async () => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-        setLoading(false);
-      }, 5000); // 5 second timeout
-
       try {
         // Check localStorage for custom session
         const savedUser = localStorage.getItem('crm_user');
@@ -88,7 +82,6 @@ const App: React.FC = () => {
             setUser(null);
           }
           setLoading(false);
-          clearTimeout(timeoutId);
           return;
         }
 
@@ -101,11 +94,9 @@ const App: React.FC = () => {
         });
 
         setLoading(false);
-        clearTimeout(timeoutId);
       } catch (err: any) {
         console.error('Check user error:', err);
         setLoading(false);
-        clearTimeout(timeoutId);
       }
     };
 

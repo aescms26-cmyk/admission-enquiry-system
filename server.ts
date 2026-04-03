@@ -344,6 +344,7 @@ export async function createServer() {
 
   app.post('/api/auth/login', async (req, res) => {
     const { userId, name } = req.body;
+    console.log(`Login attempt for User ID: ${userId}, Name: ${name}`);
     try {
       const { data: userData, error: dbError } = await supabase
         .from('users')
@@ -352,14 +353,27 @@ export async function createServer() {
         .ilike('name', `%${name}%`)
         .single();
 
-      if (dbError || !userData) {
+      if (dbError) {
+        console.error('Database error during login:', dbError);
+        if (dbError.message.includes('relation "public.users" does not exist')) {
+          return res.status(500).json({ 
+            error: 'Database table "users" is missing. Please run the SQL migration script in your Supabase SQL Editor.',
+            code: 'TABLE_MISSING'
+          });
+        }
         return res.status(401).json({ error: 'Invalid User ID or Name' });
       }
 
+      if (!userData) {
+        console.log('User not found');
+        return res.status(401).json({ error: 'Invalid User ID or Name' });
+      }
+
+      console.log('Login successful for:', userData.email);
       res.json({ success: true, user: userData });
     } catch (error: any) {
-      console.error('Login error:', error);
-      res.status(500).json({ error: error.message });
+      console.error('Unexpected login error:', error);
+      res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
   });
 
