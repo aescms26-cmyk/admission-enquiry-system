@@ -28,16 +28,11 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       try {
         const response = await fetch('/api/supabase-health');
         const result = await response.json();
-        if (result.status === 'error') {
-          if (result.message.includes('relation "public.users" does not exist')) {
-            setTableMissing(true);
-          } else {
-            setError(`Database connection issue: ${result.message}`);
-          }
+        if (result.status === 'error' && result.message.includes('relation "public.users" does not exist')) {
+          setTableMissing(true);
         }
       } catch (err) {
         console.error('Health check failed:', err);
-        setError('Could not connect to the backend server. Please ensure the dev server is running.');
       }
     };
     checkHealth();
@@ -101,17 +96,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         });
       } else {
         setError(result.error || 'Invalid User ID or Name');
-        if (result.code === 'TABLE_MISSING') {
-          setTableMissing(true);
-        }
       }
     } catch (err: any) {
       console.error('Login error:', err);
-      if (err.name === 'AbortError') {
-        setError('Login request timed out. The database might be slow or unreachable.');
-      } else {
-        setError('Network error. Please ensure the server is running and the database is connected.');
-      }
+      setError('Network error. Please try again.');
     } finally {
       setLoading(false);
     }

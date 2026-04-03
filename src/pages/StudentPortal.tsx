@@ -15,13 +15,9 @@ const INDIAN_STATES = [
 
 const CATEGORIES = ["General", "OBC", "SC/ST", "Other"];
 
-import StaffLogin from '../components/StaffLogin';
-import { useNavigate } from 'react-router-dom';
-
 const StudentPortal: React.FC = () => {
   const { theme } = useTheme();
   const { refreshKey } = useRefresh();
-  const navigate = useNavigate();
   const [courses, setCourses] = useState<Course[]>([]);
   const [formData, setFormData] = useState({
     name: '',
@@ -81,24 +77,8 @@ const StudentPortal: React.FC = () => {
       setTimeout(() => {
         document.getElementById('enquire-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 500);
-    } else if (window.location.hash === '#staff-section') {
-      setTimeout(() => {
-        document.getElementById('staff-section')?.scrollIntoView({ behavior: 'smooth' });
-      }, 500);
     }
   }, [refreshKey]);
-
-  const handleStaffLogin = (userData: User) => {
-    localStorage.setItem('crm_user', JSON.stringify(userData));
-    // Determine redirect based on role
-    switch (userData.role) {
-      case 'admin': navigate('/admin'); break;
-      case 'front_office': navigate('/admin'); break;
-      case 'team_lead': navigate('/team-lead'); break;
-      case 'counsellor': navigate('/counsellor'); break;
-      default: navigate('/');
-    }
-  };
 
   const generateTokenId = async () => {
     try {
@@ -870,11 +850,6 @@ const StudentPortal: React.FC = () => {
                     </div>
                   )}
                 </motion.div>
-
-                {/* Staff Access Section */}
-                <div id="staff-section" className="scroll-mt-32">
-                  <StaffLogin onLogin={handleStaffLogin} />
-                </div>
 
                 {/* Quick Contact Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 relative z-10">

@@ -1,7 +1,7 @@
 import React, { ReactNode, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { LogOut, LogIn, GraduationCap, MapPin, Phone, Mail, Facebook, Twitter, Instagram, Linkedin, ExternalLink, Send, ChevronUp, Sun, Moon, RefreshCw } from 'lucide-react';
+import { LogOut, GraduationCap, MapPin, Phone, Mail, Facebook, Twitter, Instagram, Linkedin, ExternalLink, Send, ChevronUp, Sun, Moon, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useRefresh } from '../contexts/RefreshContext';
@@ -32,11 +32,11 @@ const Layout: React.FC<LayoutProps> = ({ children, userRole, userName, userId })
       localStorage.removeItem('crm_user');
       // Sign out from Supabase but don't block the redirect if it's slow
       supabase.auth.signOut().catch(err => console.error('Sign out error:', err));
-      // Full redirect to home page to ensure all state is cleared
-      window.location.href = '/';
+      // Full redirect to login page to ensure all state is cleared
+      window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
-      window.location.href = '/';
+      window.location.href = '/login';
     }
   };
 
@@ -174,19 +174,13 @@ const Layout: React.FC<LayoutProps> = ({ children, userRole, userName, userId })
                   </button>
                 </div>
               ) : (
-                <button 
-                  onClick={() => {
-                    if (window.location.pathname !== '/') {
-                      navigate('/#staff-section');
-                    } else {
-                      document.getElementById('staff-section')?.scrollIntoView({ behavior: 'smooth' });
-                    }
-                  }}
+                <Link 
+                  to="/login" 
                   className={`flex items-center space-x-2 ${theme === 'dark' ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'} border px-4 py-2 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-all`}
                 >
-                  <LogIn className="h-4 w-4" />
+                  <LogOut className="h-4 w-4 rotate-180" />
                   <span>Staff Access</span>
-                </button>
+                </Link>
               )}
             </div>
           </div>
