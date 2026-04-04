@@ -3,6 +3,8 @@ import path from 'path';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
+import fs from 'fs';
+
 dotenv.config();
 
 let supabaseUrl = process.env.VITE_SUPABASE_URL || 'https://hlostzdyjvqsegxdrqil.supabase.co';
@@ -442,7 +444,7 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS break_duration_mins INTEGER DE
     // In Vercel, static files are served by the platform, 
     // but we keep this for other production environments.
     const distPath = path.join(process.cwd(), 'dist');
-    if (require('fs').existsSync(distPath)) {
+    if (fs.existsSync(distPath)) {
       app.use(express.static(distPath));
       app.get('*', (req, res) => {
         res.sendFile(path.join(distPath, 'index.html'));
@@ -453,11 +455,8 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS break_duration_mins INTEGER DE
   return app;
 }
 
-if (process.env.NODE_ENV !== 'production') {
-  createServer().then(app => {
-    const PORT = 3000;
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  });
-}
+const app = await createServer();
+const PORT = 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
